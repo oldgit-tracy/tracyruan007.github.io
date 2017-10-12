@@ -1,0 +1,105 @@
+img {
+  max-width:50%;
+  height:600px;
+}
+
+
+/*.axis--x path {
+  display: none;
+}*/
+
+.line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+.line2 {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+/**********
+*  Legend
+*/
+
+.legend .series {
+  cursor: pointer;
+}
+
+.legend circle {
+  stroke-width: 2px;
+}
+
+.legend .disabled circle {
+  fill-opacity: 0;
+}
+
+
+/*.bar {
+  fill: lightgreen;
+}*/
+
+.bar:hover {
+  fill: black;
+}
+
+/*.axis--x path {
+  display: none;
+}*/
+
+
+.main {
+  display:block;
+  	width:100%;
+    height: 100%;
+  	margin:auto;
+}
+
+.income {
+  display:block;
+  width:50%;
+  height: 100%;
+  float: left;
+  background-color: none;
+}
+
+
+.socialmedia {
+  display:block;
+  width:50%;
+  height: 10%;
+  float: right;
+  background-color: none;
+
+}
+
+h1 {
+    background-color: lightgrey;
+    text-align: center;
+}
+
+
+.divider {
+	width:100%;
+	text-align:center;
+}
+
+.divider hr {
+	margin-left:auto;
+	margin-right:auto;
+	width:100%;
+}
+
+.divider p {
+  font-size: 25px;
+  background-color: lightgrey;
+}
+/*
+.left {
+	float:left;
+}
+
+.right {
+	float:right;
+}*/
