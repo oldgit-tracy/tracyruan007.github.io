@@ -5,6 +5,430 @@ var margin0 = {top: 40, right: 34, bottom: 100, left: 70},
         // append the svg1 obgect to the body of the page
         // appends a 'group' element to 'svg1'
         // moves the 'group' element to the top left margin0
+var svg_l = d3.select("#incomeline_svg")
+             .attr("width", width0 + margin0.left + margin0.right)
+             .attr("height", height0 + margin0.top + margin0.bottom)
+             .append("g")
+             .attr("transform", "translate(" + margin0.left + "," + margin0.top + ")");
+
+
+// set the ranges
+var x0_l = d3.scaleLinear().range([0, width0]);
+var y0_l = d3.scaleLinear().range([height0, 0]);
+var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    var income_line_l = d3.line()
+        //.curve(d3.curveBasis)
+        .x(function(d) { return x0_l(d.Id); })
+        .y(function(d) { return y0_l(d.income); });
+
+
+// Get the data1
+d3.csv("newDF_income.csv", function(error, data1) {
+    // console.log(data1)
+    // debugger;
+// console.log(data1);
+    if (error) throw error;
+    // format the data1
+    data1.forEach(function(d1) {
+      d1.Id = +d1.Id;
+      d1.income = +d1.income;
+      // console.log(data1)
+    });
+
+  var incomes_l = data1.columns.slice(0).map(function(id) {
+    return {
+      id: id,
+      values: data1.map(function(d) {
+        return {probability: d.income, Count: d[id]};
+    })
+    };
+   });
+
+
+//console.log(data1)
+    // Scale the range of the data1
+    x0_l.domain(d3.extent(data1, function(d1) { return d1.Id; }));
+
+    y0_l.domain([0,1]);
+
+data1.sort(function(a, b){return a.Id-b.Id}); // sort data1 in ascending order
+
+                // Add the X Axis
+            svg_l.append("g")
+                .attr("transform", "translate(0," + height0 + ")")
+                .call(d3.axisBottom(x0_l));
+
+                // text label for the x axis
+            svg_l.append("text")
+              .attr("transform", "translate(" + 250+ " ," + (height0 + margin0.top ) + ")")
+              //.style("text-anchor", "middle")
+              .text("Income Percentile");
+
+
+              // Add the Y Axis
+            svg_l.append("g")
+            // .attr("class", "axis")
+              .call(d3.axisLeft(y0_l));
+
+
+
+// console.log(data1);
+              //line
+            svg_l.append("path")
+              .data([data1])
+              .attr("class", "line_l")
+              .attr("id", "blueLine")
+              .attr("d", income_line_l)
+              .style("stroke", "lightblue");
+
+
+              // text label for the y axis
+            svg_l.append("text")
+              .attr("transform", "rotate(-90)")
+              .attr("y", 0-70)
+              .attr("x",0 - (height0 / 2))
+              .attr("dy", "1em")
+              .style("text-anchor", "middle")
+              .text("Probability");
+
+              // Title
+            svg_l.append("text")
+              .attr("transform", "translate(" + (width0/2) + " ," + -15 + ")")
+              .attr('stroke', 'black')
+              .style("font-size", "25px")
+              .style("text-anchor", "middle")
+              .text("Impact of Income");
+
+
+
+var income_l = svg_l.selectAll(".income")
+    .data(data1)
+    .enter().append("g")
+      .attr("class", "income");
+      // console.log(income);
+
+
+      // add the dots with tooltips
+  svg_l.selectAll(".shapes")
+     .data(data1)
+   .enter().append("circle")
+     .attr("r", 2)
+     .attr("cx", function(d) { return x0_l(d.Id); })
+     .attr("cy", function(d) { return y0_l(d.income); })
+     .attr("fill","blue")
+
+
+        var mouseG_l = svg_l
+            // .append("g")
+             .attr("class", "mouse-over-effects");
+
+           mouseG_l.append("path") // this is the black vertical line to follow mouse
+             .attr("class", "mouse-line_l")
+             .style("stroke", "black")
+            //  .style("stroke-width", "1px")
+             .style("opacity", "0")
+             ;
+
+             var lines_l = document.getElementsByClassName('line_l');
+            console.log(lines_l);
+             var mousePerLine_l = mouseG_l.selectAll('.mouse-per-line_l')
+               .data(incomes_l)
+               .enter()
+               .append("g")
+               .attr("class", "mouse-per-line_l");
+
+
+            //  text color
+           mousePerLine_l.raise().append("text")
+             .attr("transform", "translate(10,20)")
+             .attr("fill", function(d2) {return color(d2.Id);})
+            //  console.log(mousePerLine);
+
+        //console.log(mousePerLine);
+           mouseG_l.append('svg:rect') // append a rect to catch mouse movements on canvas
+             .attr('width', width0) // can't catch mouse events on a g element
+             .attr('height', height0)
+             .attr('fill', 'none')
+             .attr('pointer-events', 'all')
+             .on('mouseout', function() { // on mouse out hide line and text
+               d3.select(".mouse-line_l")
+                 .style("opacity", "0.1");
+               d3.selectAll(".mouse-per-line_l text")
+                 .style("opacity", "1");
+             })
+             .on('mouseover', function() { // on mouse in show line and text
+               d3.select(".mouse-line_l")
+                 .style("opacity", "0.5");
+               d3.selectAll(".mouse-per-line_l text")
+                 .style("opacity", "0.8")
+                 .style("font-size", "15px");
+             })
+             .on('mousemove', function() { // mouse moving over canvas
+               var mouse = d3.mouse(this);
+               d3.select(".mouse-line_l")
+                 .attr("d", function() {
+                   var m = "M" + mouse[0] + "," + height0;
+                   m += " " + mouse[0] + "," + 0;
+                   return m;
+                 });
+// console.log(mousePerLine);
+               d3.selectAll(".mouse-per-line_l")
+                 .attr("transform", function(d,i) {
+                  //  console.log(d,i,lines)
+                  //  console.log(lines[0])
+                              var beginning = 0,
+                                  end = lines_l[0].getTotalLength(),
+                                  target = null;
+                  //  console.log(lines[i]);
+                              while (true){
+                                target = Math.floor((beginning + end) / 2);
+
+                                pos = lines_l[0].getPointAtLength(target);
+                                // console.log(pos);
+                                if ((target === end || target === beginning) && pos.x !== mouse[0]) {
+                                    break;
+                                }
+                                if (pos.x > mouse[0])      end = target;
+                                else if (pos.x < mouse[0]) beginning = target;
+                                else break; //position found
+                              }
+
+                              d3.select(this).select('text')
+                                .text(y0_l.invert(pos.y).toFixed(6));
+
+                                // console.log(y0.invert(pos.y).toFixed(0));
+
+                                var trans_x = mouse[0];
+                          // if(i == 0 && 2014 < x.invert(mouse[0])){
+                          //  trans_x = trans_x - 70;
+                          // }
+                                return "translate(" + trans_x + "," + pos.y +")";
+                            });
+                   });
+
+});
+
+
+//zoomed y-axis version
+var margin0 = {top: 40, right: 34, bottom: 100, left: 70},
+    width0 = 660 - margin0.left - margin0.right,
+    height0 = 600 - margin0.top - margin0.bottom;
+
+        // append the svg1 obgect to the body of the page
+        // appends a 'group' element to 'svg1'
+        // moves the 'group' element to the top left margin0
+var svg_n = d3.select("#incomeline2_svg")
+             .attr("width", width0 + margin0.left + margin0.right)
+             .attr("height", height0 + margin0.top + margin0.bottom)
+             .append("g")
+             .attr("transform", "translate(" + margin0.left + "," + margin0.top + ")");
+
+
+// set the ranges
+var x0_n = d3.scaleLinear().range([0, width0]);
+var y0_n = d3.scaleLinear().range([height0, 0]);
+var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    var income_line2 = d3.line()
+        //.curve(d3.curveBasis)
+        .x(function(d) { return x0_n(d.Id); })
+        .y(function(d) { return y0_n(d.income); });
+
+
+// Get the data1
+d3.csv("newDF_income.csv", function(error, data1) {
+    // console.log(data1)
+    // debugger;
+// console.log(data1);
+    if (error) throw error;
+    // format the data1
+    data1.forEach(function(d1) {
+      d1.Id = +d1.Id;
+      d1.income = +d1.income;
+      // console.log(data1)
+    });
+
+  var incomes2 = data1.columns.slice(0).map(function(id) {
+    return {
+      id: id,
+      values: data1.map(function(d) {
+        return {probability: d.income, Count: d[id]};
+    })
+    };
+   });
+
+
+//console.log(data1)
+    // Scale the range of the data1
+    x0_n.domain(d3.extent(data1, function(d1) { return d1.Id; }));
+
+    y0_n.domain([0.7,0.9]);
+
+data1.sort(function(a, b){return a.Id-b.Id}); // sort data1 in ascending order
+
+                // Add the X Axis
+            svg_n.append("g")
+                .attr("transform", "translate(0," + height0 + ")")
+                .call(d3.axisBottom(x0_n));
+
+                // text label for the x axis
+            svg_n.append("text")
+              .attr("transform", "translate(" + 250+ " ," + (height0 + margin0.top ) + ")")
+              //.style("text-anchor", "middle")
+              .text("Income Percentile");
+
+
+              // Add the Y Axis
+            svg_n.append("g")
+              .call(d3.axisLeft(y0_n));
+
+
+
+// console.log(data1);
+              //line
+            svg_n.append("path")
+              .data([data1])
+              .attr("class", "line_n")
+              .attr("id", "blueLine")
+              .attr("d", income_line2)
+              .style("stroke", "lightblue");
+
+
+              // text label for the y axis
+            svg_n.append("text")
+              .attr("transform", "rotate(-90)")
+              .attr("y", 0-70)
+              .attr("x",0 - (height0 / 2))
+              .attr("dy", "1em")
+              .style("text-anchor", "middle")
+              .text("Probability");
+
+              // Title
+            svg_n.append("text")
+              .attr("transform", "translate(" + (width0/2) + " ," + -15 + ")")
+              .attr('stroke', 'black')
+              .style("font-size", "25px")
+              .style("text-anchor", "middle")
+              .text("Impact of Income");
+
+
+
+var income2 = svg_n.selectAll(".income")
+    .data(data1)
+    .enter().append("g")
+      .attr("class", "income");
+      // console.log(income);
+
+
+      // add the dots with tooltips
+  svg_n.selectAll(".shapes")
+     .data(data1)
+   .enter().append("circle")
+     .attr("r", 2)
+     .attr("cx", function(d) { return x0_n(d.Id); })
+     .attr("cy", function(d) { return y0_n(d.income); })
+     .attr("fill","blue")
+
+
+        var mouseG = svg_n
+            // .append("g")
+             .attr("class", "mouse-over-effects");
+
+           mouseG.append("path") // this is the black vertical line to follow mouse
+             .attr("class", "mouse-line_n")
+             .style("stroke", "black")
+            //  .style("stroke-width", "1px")
+             .style("opacity", "0")
+             ;
+
+             var lines = document.getElementsByClassName('line_n');
+            console.log(lines);
+             var mousePerLine = mouseG.selectAll('.mouse-per-line_n')
+               .data(incomes2)
+               .enter()
+               .append("g")
+               .attr("class", "mouse-per-line_n");
+            // console.log(mousePerLine);
+
+            //  text color
+           mousePerLine.raise().append("text")
+             .attr("transform", "translate(10,20)")
+             .attr("fill", function(d2) {return color(d2.Id);})
+            //  console.log(mousePerLine);
+
+        //console.log(mousePerLine);
+           mouseG.append('svg:rect') // append a rect to catch mouse movements on canvas
+             .attr('width', width0) // can't catch mouse events on a g element
+             .attr('height', height0)
+             .attr('fill', 'none')
+             .attr('pointer-events', 'all')
+             .on('mouseout', function() { // on mouse out hide line and text
+               d3.select(".mouse-line_n")
+                 .style("opacity", "0.1");
+               d3.selectAll(".mouse-per-line_n text")
+                 .style("opacity", "1");
+             })
+             .on('mouseover', function() { // on mouse in show line and text
+               d3.select(".mouse-line_n")
+                 .style("opacity", "0.5");
+               d3.selectAll(".mouse-per-line_n text")
+                 .style("opacity", "0.8")
+                 .style("font-size", "15px");
+             })
+             .on('mousemove', function() { // mouse moving over canvas
+               var mouse = d3.mouse(this);
+               d3.select(".mouse-line_n")
+                 .attr("d", function() {
+                   var m = "M" + mouse[0] + "," + height0;
+                   m += " " + mouse[0] + "," + 0;
+                   return m;
+                 });
+// console.log(mousePerLine);
+               d3.selectAll(".mouse-per-line_n")
+                 .attr("transform", function(d,i) {
+                  //  console.log(d,i,lines)
+                  //  console.log(lines[0])
+                              var beginning = 0,
+                                  end = lines[0].getTotalLength(),
+                                  target = null;
+                  //  console.log(lines[i]);
+                              while (true){
+                                target = Math.floor((beginning + end) / 2);
+
+                                pos = lines[0].getPointAtLength(target);
+                                // console.log(pos);
+                                if ((target === end || target === beginning) && pos.x !== mouse[0]) {
+                                    break;
+                                }
+                                if (pos.x > mouse[0])      end = target;
+                                else if (pos.x < mouse[0]) beginning = target;
+                                else break; //position found
+                              }
+
+                              d3.select(this).select('text')
+                                .text(y0_n.invert(pos.y).toFixed(6));
+
+                                // console.log(y0.invert(pos.y).toFixed(0));
+
+                                var trans_x = mouse[0];
+                          // if(i == 0 && 2014 < x.invert(mouse[0])){
+                          //  trans_x = trans_x - 70;
+                          // }
+                                return "translate(" + trans_x + "," + pos.y +")";
+                            });
+                   });
+
+});
+
+
+var margin0 = {top: 40, right: 34, bottom: 100, left: 70},
+    width0 = 660 - margin0.left - margin0.right,
+    height0 = 600 - margin0.top - margin0.bottom;
+
+        // append the svg1 obgect to the body of the page
+        // appends a 'group' element to 'svg1'
+        // moves the 'group' element to the top left margin0
 var svg = d3.select("#lines_svg")
              .attr("width", width0 + margin0.left + margin0.right)
              .attr("height", height0 + margin0.top + margin0.bottom)
@@ -348,9 +772,6 @@ var income = svg.selectAll(".income")
 
 
 });
-
-
-
 
 
 

@@ -6,6 +6,409 @@ var margin = {top: 40, right: 34, bottom: 100, left: 70},
         // append the svg1 obgect to the body of the page
         // appends a 'group' element to 'svg1'
         // moves the 'group' element to the top left margin1
+var svg4_l = d3.select("#medialine_svg")
+             .attr("width", width +margin.left + margin.right)
+             .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+
+// set the ranges
+var x_l = d3.scaleLinear().range([0, width]);
+var y_l = d3.scaleLinear().range([height, 0]);
+// var color_l = d3.scaleOrdinal(d3.schemeCategory10);
+var color_l = d3.scaleOrdinal()
+     .domain(media_line)
+     .range(["steelblue"]);
+
+    var media_line = d3.line()
+        // .curve(d3.curveBasis)
+        .x(function(d) { return x_l(d.Id); })
+        .y(function(d) { return y_l(d.media); })
+      ;
+
+
+// Get the data1
+d3.csv("newdf_media.csv", function(error, data2) {
+    // console.log(data2)
+
+    if (error) throw error;
+    // format the data2
+    data2.forEach(function(d1) {
+      // d1.Id = +d1.Id;
+      d1.Id = +d1.Id;
+      d1.media = +d1.media;
+
+    });
+
+  var medias2 = data2.columns.slice(0).map(function(id) {
+    return {
+      id: id,
+      values: data2.map(function(d) {
+        return {probability: d.media, Count: d[id]};
+    })
+    };
+   });
+
+
+//console.log(data2)
+    // Scale the range of the data2
+    x_l.domain(d3.extent(data2, function(d1) { return d1.Id; }));
+
+y_l.domain([0,1]);
+
+data2.sort(function(a, b){return a.Id-b.Id}); // sort data2 in ascending order
+
+                // Add the X Axis
+            svg4_l.append("g")
+                .attr("transform", "translate(0," + height + ")")
+                .call(d3.axisBottom(x_l));
+
+                // text label for the x axis
+            svg4_l.append("text")
+              .attr("transform", "translate(" + 250+ " ," + (height + margin.top ) + ")")
+              //.style("text-anchor", "middle")
+              .text("Media quantile");
+
+              // Add the Y Axis
+            svg4_l.append("g")
+            // .attr("class", "axis")
+              .call(d3.axisLeft(y_l));
+
+              //line
+            svg4_l.append("path")
+              .data([data2])
+              .attr("class", "line2_l")
+              .attr("id", "blueLine2")
+              .attr("d", media_line)
+              .style("stroke", "lightblue");
+
+
+              // text label for the y axis
+            svg4_l.append("text")
+              .attr("transform", "rotate(-90)")
+              .attr("y", 0-70)
+              .attr("x",0 - (height / 2))
+              .attr("dy", "1em")
+              .style("text-anchor", "middle")
+              .text("Probability");
+
+              // Title
+            svg4_l.append("text")
+              .attr("transform", "translate(" + (width/2) + " ," + -15 + ")")
+              .attr('stroke', 'black')
+              .style("font-size", "25px")
+              .style("text-anchor", "middle")
+              .text("Impact of Media");
+
+var media2 = svg4_l.selectAll(".media")
+    .data(data2)
+    .enter().append("g")
+      .attr("class", "media");
+      // console.log(media);
+
+
+      // add the dots with tooltips
+  svg4_l.selectAll(".shapes")
+     .data(data2)
+   .enter().append("circle")
+     .attr("r", 2)
+     .attr("cx", function(d) { return x_l(d.Id); })
+     .attr("cy", function(d) { return y_l(d.media); })
+     .attr("fill","blue")
+
+
+        var mouseG2_l = svg4_l
+        // .append('g')
+             .attr("class", "mouse-over-effects2");
+           mouseG2_l.append("path") // this is the black vertical line to follow mouse
+             .attr("class", "mouse-line2_l")
+             .style("stroke", "black")
+             .style("stroke-width", "1px")
+             .style("opacity", "0");
+
+             var lines2_l = document.getElementsByClassName("line2_l");
+            // console.log(lines2);
+             var mousePerLine2_l = mouseG2_l.selectAll('.mouse-per-line2_l')
+               .data(medias2)
+               .enter()
+               .append("g")
+               .attr("class", "mouse-per-line2_l");
+
+
+            //  text
+           mousePerLine2_l.raise().append("text")
+            .attr("transform", "translate(10,40)")
+             .attr("fill", function(d2) {return color_l(d2.id);})
+
+           mouseG2_l.append('svg4:rect') // append a rect to catch mouse movements on canvas
+             .attr('width', width) // can't catch mouse events on a g element
+             .attr('height', height)
+             .attr('fill', 'none')
+             .attr('pointer-events', 'all')
+             .on('mouseout', function() { // on mouse out hide line and text
+               d3.select(".mouse-line2_l")
+                 .style("opacity", "0.5");
+               d3.selectAll(".mouse-per-line2_l text")
+                 .style("opacity", "1");
+             })
+             .on('mouseover', function() { // on mouse in show line and text
+               d3.select(".mouse-line2_l")
+                 .style("opacity", "0.5");
+               d3.selectAll(".mouse-per-line2_l text")
+                 .style("opacity", "0.8")
+                 .style("font-size", "15px");
+             })
+             .on('mousemove', function() { // mouse moving over canvas
+               var mouse2 = d3.mouse(this);
+               d3.select(".mouse-line2_l")
+                 .attr("d", function() {
+                   var m = "M" + mouse2[0] + "," + height;
+                   m += " " + mouse2[0] + "," + 0;
+                   return m;
+                 });
+
+               d3.selectAll(".mouse-per-line2_l")
+                 .attr("transform", function(d,i) {
+                              var beginning = 0,
+                                  end = lines2_l[0].getTotalLength(),
+                                  target = null;
+                              while (true){
+                                target = Math.floor((beginning + end) / 2);
+
+                                pos = lines2_l[0].getPointAtLength(target);
+
+                                if ((target === end || target === beginning) && pos.x !== mouse2[0]) {
+                                    break;
+                                }
+                                if (pos.x > mouse2[0])      end = target;
+                                else if (pos.x < mouse2[0]) beginning = target;
+                                else break; //position found
+                              }
+
+                              d3.select(this).select('text')
+                                .text(y_l.invert(pos.y).toFixed(6));
+
+                                var trans_x = mouse2[0];
+                          // if(i == 0  < x.invert(mouse[0])){
+                          //  trans_x = trans_x - 50;
+                          // }
+                                return "translate(" + trans_x + "," + pos.y +")";
+                            });
+                   });
+
+});
+
+
+// zoomed y-axis version
+//Set the dimensions of the canvas / graph
+var margin_n = {top: 40, right: 34, bottom: 100, left: 70},
+    width_n =650 - margin_n.left - margin_n.right,
+    height_n = 600 - margin_n.top - margin_n.bottom;
+
+        // append the svg1 obgect to the body of the page
+        // appends a 'group' element to 'svg1'
+        // moves the 'group' element to the top left margin_n1
+var svg4_n = d3.select("#medialine2_svg")
+             .attr("width", width_n +margin_n.left + margin_n.right)
+             .attr("height", height_n + margin_n.top + margin_n.bottom)
+          .append("g")
+             .attr("transform", "translate(" + margin_n.left + "," + margin_n.top + ")");
+
+
+// set the ranges
+var x_n = d3.scaleLinear().range([0, width_n]);
+var y_n = d3.scaleLinear().range([height_n, 0]);
+var color_n = d3.scaleOrdinal()
+     .domain(media_line)
+     .range(["steelblue"]);
+
+    var media_line2 = d3.line()
+        // .curve(d3.curveBasis)
+        .x(function(d) { return x_n(d.Id); })
+        .y(function(d) { return y_n(d.media); })
+      ;
+
+
+// Get the data1
+d3.csv("newdf_media.csv", function(error, data2) {
+    // console.log(data2)
+
+    if (error) throw error;
+    // format the data2
+    data2.forEach(function(d2) {
+      // d1.Id = +d1.Id;
+      d2.Id = +d2.Id;
+      d2.media = +d2.media;
+
+    });
+
+  var medias2 = data2.columns.slice(0).map(function(id) {
+    return {
+      id: id,
+      values: data2.map(function(d) {
+        return {probability: d.media, Count: d[id]};
+    })
+    };
+   });
+
+
+//console.log(data2)
+    // Scale the range of the data2
+    x_n.domain(d3.extent(data2, function(d1) { return d1.Id; }));
+
+y_n.domain([0.6,1]);
+
+data2.sort(function(a, b){return a.Id-b.Id}); // sort data2 in ascending order
+
+                // Add the X Axis
+            svg4_n.append("g")
+                .attr("transform", "translate(0," + height_n + ")")
+                .call(d3.axisBottom(x_n));
+
+                // text label for the x axis
+            svg4_n.append("text")
+              .attr("transform", "translate(" + 250+ " ," + (height_n + margin_n.top ) + ")")
+              //.style("text-anchor", "middle")
+              .text("Media quantile");
+
+              // Add the Y Axis
+            svg4_n.append("g")
+            // .attr("class", "axis")
+              .call(d3.axisLeft(y_n));
+
+              //line
+            svg4_n.append("path")
+              .data([data2])
+              .attr("class", "line2_n")
+              .attr("id", "blueLine2")
+              .attr("d", media_line2)
+              .style("stroke", "lightblue");
+
+
+              // text label for the y axis
+            svg4_n.append("text")
+              .attr("transform", "rotate(-90)")
+              .attr("y", 0-70)
+              .attr("x",0 - (height_n / 2))
+              .attr("dy", "1em")
+              .style("text-anchor", "middle")
+              .text("Probability");
+
+              // Title
+            svg4_n.append("text")
+              .attr("transform", "translate(" + (width_n/2) + " ," + -15 + ")")
+              .attr('stroke', 'black')
+              .style("font-size", "25px")
+              .style("text-anchor", "middle")
+              .text("Impact of Media");
+
+var media2 = svg4_n.selectAll(".media")
+    .data(data2)
+    .enter().append("g")
+      .attr("class", "media");
+      // console.log(media);
+
+
+      // add the dots with tooltips
+  svg4_n.selectAll(".shapes")
+     .data(data2)
+   .enter().append("circle")
+     .attr("r", 2)
+     .attr("cx", function(d) { return x_n(d.Id); })
+     .attr("cy", function(d) { return y_n(d.media); })
+     .attr("fill","blue")
+
+
+        var mouseG2_n = svg4_n
+        // .append('g')
+             .attr("class", "mouse-over-effects2_n");
+           mouseG2_n.append("path") // this is the black vertical line to follow mouse
+             .attr("class", "mouse-line2_n")
+             .style("stroke", "black")
+             .style("stroke-width", "1px")
+             .style("opacity", "0");
+
+             var lines2_n = document.getElementsByClassName("line2_n");
+            // console.log(lines2_n);
+             var mousePerLine2_n = mouseG2_n.selectAll('.mouse-per-line2_n')
+               .data(medias2)
+               .enter()
+               .append("g")
+               .attr("class", "mouse-per-line2_n");
+
+
+            //  text
+           mousePerLine2_n.raise().append("text")
+            .attr("transform", "translate(10,70)")
+             .attr("fill", function(d2) {return color_n(d2.id);})
+
+           mouseG2_n.append('svg4:rect') // append a rect to catch mouse movements on canvas
+             .attr('width', width_n) // can't catch mouse events on a g element
+             .attr('height', height_n)
+             .attr('fill', 'none')
+             .attr('pointer-events', 'all')
+             .on('mouseout', function() { // on mouse out hide line and text
+               d3.select(".mouse-line2_n")
+                 .style("opacity", "0.5");
+               d3.selectAll(".mouse-per-line2_n text")
+                 .style("opacity", "1");
+             })
+             .on('mouseover', function() { // on mouse in show line and text
+               d3.select(".mouse-line2_n")
+                 .style("opacity", "0.5");
+               d3.selectAll(".mouse-per-line2_n text")
+                 .style("opacity", "0.8")
+                 .style("font-size", "15px");
+             })
+             .on('mousemove', function() { // mouse moving over canvas
+               var mouse2 = d3.mouse(this);
+               d3.select(".mouse-line2_n")
+                 .attr("d", function() {
+                   var m = "M" + mouse2[0] + "," + height_n;
+                   m += " " + mouse2[0] + "," + 0;
+                   return m;
+                 });
+
+               d3.selectAll(".mouse-per-line2_n")
+                 .attr("transform", function(d,i) {
+                              var beginning = 0,
+                                  end = lines2_n[0].getTotalLength(),
+                                  target = null;
+                              while (true){
+                                target = Math.floor((beginning + end) / 2);
+
+                                pos = lines2_n[0].getPointAtLength(target);
+
+                                if ((target === end || target === beginning) && pos.x !== mouse2[0]) {
+                                    break;
+                                }
+                                if (pos.x > mouse2[0])      end = target;
+                                else if (pos.x < mouse2[0]) beginning = target;
+                                else break; //position found
+                              }
+
+                              d3.select(this).select('text')
+                                .text(y_n.invert(pos.y).toFixed(6));
+
+                                var trans_x = mouse2[0];
+                          // if(i == 0  < x.invert(mouse[0])){
+                          //  trans_x = trans_x - 50;
+                          // }
+                                return "translate(" + trans_x + "," + pos.y +")";
+                            });
+                   });
+
+});
+
+//Set the dimensions of the canvas / graph
+var margin = {top: 40, right: 34, bottom: 100, left: 70},
+    width =650 - margin.left - margin.right,
+    height = 600 - margin.top - margin.bottom;
+
+        // append the svg1 obgect to the body of the page
+        // appends a 'group' element to 'svg1'
+        // moves the 'group' element to the top left margin1
 var svg4 = d3.select("#lines2_svg")
              .attr("width", width +margin.left + margin.right)
              .attr("height", height + margin.top + margin.bottom)
@@ -17,7 +420,9 @@ var svg4 = d3.select("#lines2_svg")
 // set the ranges
 var x = d3.scaleLinear().range([0, width]);
 var y = d3.scaleLinear().range([height, 0]);
-var color = d3.scaleOrdinal(d3.schemeCategory10);
+var color = d3.scaleOrdinal()
+     .domain(["line_low_media","line_middle_media","line_high_media"])
+     .range(["green","steelblue","red"]);
 
     var line_low_media = d3.line()
         // .curve(d3.curveBasis)

@@ -8,13 +8,37 @@ img {
   display: none;
 }*/
 
+.line_l {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
 .line {
   fill: none;
   stroke: steelblue;
   stroke-width: 1.5px;
 }
 
+.line_n {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+.line2_l {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
 .line2 {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+.line2_n {
   fill: none;
   stroke: steelblue;
   stroke-width: 1.5px;
