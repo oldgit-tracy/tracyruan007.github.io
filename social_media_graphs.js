@@ -29,7 +29,7 @@ var color_l = d3.scaleOrdinal()
 
 
 // Get the data1
-d3.csv("newdf_media.csv", function(error, data2) {
+d3.csv("newDF_media.csv", function(error, data2) {
     // console.log(data2)
 
     if (error) throw error;
