@@ -1,0 +1,619 @@
+---
+title: "avistaEbill"
+output: html_document
+---
+
+
+```{r init, echo=F, message=F, warning=F, cache=F, eval=T}
+setwd("/Users/tracy/Desktop/practice/project1/")
+  
+library(RPostgreSQL)
+library(tidyverse)
+library(knitr)
+library(rJava)
+library(SunstoneR)
+library(randomForest)
+require(stats)
+library(plot3D)
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+```{r postgres_db_connect, echo=F, message=F, warning=F, cache=F, eval=T}
+# connect database
+db <- dbDriver("PostgreSQL") %>% 
+  src_postgres(user="sunstone", password="trvNew!23",host="54.167.190.133", port=5432, dbname="sunstone")
+
+# income = demo1_ecd40, comp_owner = demo2_ecd25, age = demo1_ecd15, educ = demo1_ecd52, social_media = demo1_ecd173, facebook = demo1_ecd174, facebook_brand = demo1_ecd175, facebook_rec = demo1_ecd176, pintrest = demo1_ecd177, twitter = ecd178, home_owner = demo1_ecd38, online_household = demo1_ecd58
+consumer_data_mv <- dbGetQuery(db$con, "select  demo1_ecd40, demo2_ecd25, demo1_ecd15, demo1_ecd52, demo1_ecd173, demo1_ecd174, demo1_ecd175, demo1_ecd176, demo1_ecd177, demo1_ecd178, demo1_ecd38, demo1_ecd58, id1 from data.consumer_data_mv") %>% rename(income = demo1_ecd40, comp_owner = demo2_ecd25, age = demo1_ecd15, educ = demo1_ecd52, social_media = demo1_ecd173, facebook = demo1_ecd174, facebook_brand = demo1_ecd175, facebook_rec = demo1_ecd176, pintrest = demo1_ecd177, twitter = demo1_ecd178, home_owner = demo1_ecd38, online_household = demo1_ecd58)
+
+consumer_data_mv <- consumer_data_mv[sample(nrow(consumer_data_mv),37525),] # same length as train
+
+consumer <- tbl(db, "consumer") %>% select(consumer_id=id, consumer_udc_id = udc_id, name_consumer=name) %>% collect(n=Inf)
+consumer <- subset(consumer, select = -consumer_id)
+consumer <- consumer[sample(nrow(consumer),37525),]
+
+# merge udc_id dataset with train and test
+df <- cbind(consumer,consumer_data_mv)
+
+# append udcid into train and test dataset from company dataset 
+udcid <- read.csv("/Users/tracy/Desktop/practice/project1/udc_id.csv")
+train <- read.csv("/Users/tracy/Desktop/practice/project1/train.csv",sep=",")  #37525
+test <-  read.csv("/Users/tracy/Desktop/practice/project1/test.csv",sep=",") #37525
+
+udcid <- udcid[sample(nrow(udcid),37525),]
+udcid <- data.frame(udcid)
+
+train <- cbind(train, udcid)
+test <- cbind(test, udcid)
+
+colnames(train)[20] <- "consumer_udc_id"
+train_merge <- merge(df,train,by="consumer_udc_id")
+
+colnames(test)[19] <- "consumer_udc_id"
+test_merge <- merge(df,test,by="consumer_udc_id")
+
+```
+
+```{r get_data_via_postgres, echo=F, message=F, warning=F, cache=F, eval=T}
+na_train <- na.omit(train_merge)
+na_test <- na.omit(test_merge)
+na_train <- subset(na_train,select = -Age) # delete dumplicated age feature (two age features in df)
+na_test <- subset(na_test,select = -Age)
+
+colnames(na_train)[32]<- "price"
+colnames(na_train)[31]<- "distance"
+
+Quantity_to_binary <- as.numeric(na_train$quantity_to_binary)
+Comp_owner <- as.factor(na_train$comp_owner)
+Education <- as.factor(na_train$educ)
+Social_media <- as.numeric(na_train$social_media)
+Facebook <- as.numeric(na_train$facebook)
+Facebook_brand <- as.numeric(na_train$facebook_brand)
+Facebook_rec <- as.numeric(na_train$facebook_rec)
+Pintrest <- as.numeric(na_train$pintrest)
+Twitter<- as.numeric(na_train$twitter)
+Online_household<- as.factor(na_train$online_household)
+Customer_gender<- as.factor(na_train$Customer.s.sex)
+New_Customer_Index<- as.factor(na_train$New.customer.Index)
+Customer_Seniority<- as.numeric(na_train$Customer.seniority..in.months.)
+Customer_Relation_Type<- as.factor(na_train$Customer.relation.type)
+Foreigner_Index<- as.factor(na_train$Foreigner.index)
+Deceased_Index<- as.factor(na_train$Deceased.index..N.S)
+Activity_Index<- as.factor(na_train$Activity.index)
+Income<- as.numeric(na_train$income)
+Segmentation<- as.factor(na_train$segmentation)
+Distance<- as.numeric(na_train$distance)
+Price<- as.numeric(na_train$price)
+Custumer_Age <- as.numeric(na_train$age)
+
+
+rf <- randomForest(Quantity_to_binary~ Comp_owner+Education+Social_media+Facebook+Facebook_brand+Facebook_rec+Pintrest+Twitter+Online_household+Customer_gender+Custumer_Age+New_Customer_Index+Customer_Seniority+Customer_Relation_Type+Foreigner_Index+Deceased_Index+Activity_Index+Income+Segmentation+Distance+Price)
+
+# rf<-randomForest(na_train$quantity_to_binary~
+#                     na_train$comp_owner+na_train$educ+na_train$social_media+na_train$facebook+na_train$facebook_brand+na_train$facebook_rec+na_train$pintrest+na_train$twitter+na_train$online_household+na_train$Customer.s_gender+na_train$New_customer_Index+na_train$Customer_seniority+na_train$Customer_relation_type+na_train$Foreigner_index+na_train$Deceased_index+na_train$Activity_index+na_train$segmentation+na_train$Distance+na_train$Price+na_train$age+na_train$income)
+
+round(importance(rf),2)
+
+
+```
+
+```{r}
+# predict 
+# na_test <- na_test[sample(nrow(na_test),12699),]
+
+predic <- predict(rf, na_test, na.action=na.omit)
+
+par(mar=c(1,1,1,1))
+# mean decrease in node impurity/ importance
+randomforest <- rf
+varImpPlot(randomforest,type = 2)
+```
+
+
+```{r}
+# multiple the probability into scale by 10, ie, prob=0.2, scale=0.2*10=2
+scale <- predic*10
+
+# boxplot with y-axi=prob, x-axis= count the number of same probability/scale
+t<-table(scale)
+t_df <- as.data.frame(t)
+t_df$scale <- as.vector(t_df$scale)
+count<-as.vector(t_df$Freq)
+scale2<-as.numeric(t_df$scale)
+
+hist(scale,main='Histogram For Scale', xlim = c(0,10),breaks = 4)
+# lines(density(scale))
+```
+
+
+```{r}
+quantile(count)
+quantile(scale2)
+quantile(scale)
+```
+
+
+```{r}
+predic<-as.vector(predic)
+predic <- data.frame(predic)
+low_prob <- subset(predic,predic<0.6)
+mid_prob <- subset(predic, predic<0.8 & predic>0.6)
+high_prob <- subset(predic, predic>=0.8)
+
+low_prob <- setNames(cbind(rownames(low_prob), low_prob, row.names = NULL), 
+         c("local_ID", "probability"))
+mid_prob <- setNames(cbind(rownames(mid_prob), mid_prob, row.names = NULL), 
+         c("local_ID", "probability"))
+high_prob <- setNames(cbind(rownames(high_prob), high_prob, row.names = NULL), 
+         c("local_ID", "probability"))
+
+predic <- setNames(cbind(rownames(predic), predic, row.names = NULL), 
+         c("local_ID", "probability"))
+
+na_test <- setNames(cbind(rownames(na_test), na_test, row.names = NULL), 
+         c("local_ID", "consumer_udc_id","name_consumer","income","comp_owner","Age","educ","social_media","facebook","facebook_brand","facebook_rec","pintrest","twitter","home_owner","online_household","id1","ID","Employee_index","Customer.s_gender","New_customer_Index","Customer_seniority","Class","Customer_type","Customer_relation_type","Residence_index","Foreigner_index","Deceased_index","Addres_type","Activity_index","Gross_income","Segmentation","distance","price"))
+
+
+match_df1 <- na_test[na_test$local_ID %in% low_prob$local_ID,]
+match_df2 <- na_test[na_test$local_ID %in% mid_prob$local_ID,]
+match_df3 <- na_test[na_test$local_ID %in% high_prob$local_ID,]
+
+low_len <- as.vector(1:47) # the same length as match_df1$educ, check manually
+mid_len <- as.vector(1:4) # the same length as match_df2$educ 
+high_len <- as.vector(1:5491) # the same length as match_df3$educ
+
+
+```
+
+
+```{r}
+# barchart for education
+na_test$"Probability" <- predic$probability
+
+low_prob_df <- subset(na_test, na_test$Probability<0.6)
+mid_prob_df <- subset(na_test, na_test$Probability>0.6 &na_test$Probability<0.8 )
+high_prob_df <- subset(na_test, na_test$Probability>0.8)
+
+count1<-table(low_prob_df$educ)
+count2<-table(mid_prob_df$educ)
+count3<-table(high_prob_df$educ)
+low<- barplot(count1, main = "Barplot: Education For Low Probability", xlab = "Education Level", ylab = "Number of People", col = "lightgreen")
+mid<- barplot(count2,main = "Barplot: Education For Middle Probability", xlab = "Education Level", ylab = "Number of People", col = "red")
+high<-barplot(count3,main = "Barplot: Education For High Probability", xlab = "Education Level", ylab = "Number of People", col = "lightblue")
+
+```
+
+```{r}
+# income from consumer_data_mv
+# histogram for low-prob  
+low_prob_df$income <- as.numeric(low_prob_df$income)
+low_prob_df<-low_prob_df[low_prob_df$income!=1,]
+hist_income1 <- hist(low_prob_df$income, main = "Histogram For Income In Low Probability", xlab = "Income", col = "lightgreen",breaks = 1:36)
+xfit <- seq(min(low_prob_df$income), max(low_prob_df$income)) 
+yfit <- dnorm(xfit, mean = mean(low_prob_df$income), sd = sd(low_prob_df$income))
+yfit <- yfit * diff(hist_income1$mids[1:2]) * length(low_prob_df$income) 
+lines(xfit, yfit, lwd = 4)
+
+# histogram for mid-prob
+mid_prob_df$income <- as.numeric(mid_prob_df$income)
+mid_prob_df<-mid_prob_df[mid_prob_df$income!=1,]
+hist_income2 <- hist(mid_prob_df$income,main = "Histogram For Income In Middle Probability", xlab = "Income", col = "red",breaks = 1:36)
+xfit <- seq(min(mid_prob_df$income), max(mid_prob_df$income)) 
+yfit <- dnorm(xfit, mean = mean(mid_prob_df$income), sd = sd(mid_prob_df$income))
+yfit <- yfit * diff(hist_income2$mids[1:2]) * length(mid_prob_df$income) 
+lines(xfit, yfit, lwd = 4)
+
+# histogram for high-prob  
+high_prob_df$income <- as.numeric(high_prob_df$income)
+high_prob_df<-high_prob_df[high_prob_df$income!=1,]
+hist_income3 <- hist(high_prob_df$income, main = "Histogram For Income In High Probability", xlab = "Income", col = "lightblue",breaks = 1:36) 
+xfit <- seq(min(high_prob_df$income), max(high_prob_df$income)) 
+yfit <- dnorm(xfit, mean = mean(high_prob_df$income), sd = sd(high_prob_df$income))
+yfit <- yfit * diff(hist_income3$mids[1:2]) * length(high_prob_df$income) 
+lines(xfit, yfit, lwd = 4)
+```
+
+
+```{r}
+# histogram (quantitative variable) for facebook
+count_fb1 <- table(low_prob_df$facebook)
+count_fb2 <- table(mid_prob_df$facebook)
+count_fb3 <- table(high_prob_df$facebook)
+
+hist_fb1 <-hist(low_prob_df$facebook, main = "Histogram For Facebook In Low Probability", xlab = "Facebook", col = "lightgreen") # histogram for low prob
+xfit1 <- seq(min(low_prob_df$facebook), max(low_prob_df$facebook), length = 100) 
+yfit1 <- dnorm(xfit1, mean = mean(low_prob_df$facebook), sd = sd(low_prob_df$facebook))
+yfit1 <- yfit1 * diff(hist_fb1$mids[1:2]) * length(low_prob_df$facebook) 
+lines(xfit1, yfit1, lwd = 4)
+
+hist_fb2 <- hist(mid_prob_df$facebook, main= "Histogram For Facebook In Middle Probability", xlab = "Facebook", col = "red") # histogram for high prob
+xfit2 <- seq(min(mid_prob_df$facebook), max(mid_prob_df$facebook), length = 100) 
+yfit2 <- dnorm(xfit2, mean = mean(mid_prob_df$facebook), sd = sd(mid_prob_df$facebook))
+yfit2 <- yfit2 * diff(hist_fb2$mids[1:2]) * length(mid_prob_df$facebook) 
+lines(xfit2, yfit2, lwd = 4)
+
+hist_fb3 <- hist(high_prob_df$facebook, main="Histogram For Facebook In High Probability", xlab = "Facebook", col = "lightblue") # histogram for high prob
+xfit3 <- seq(min(high_prob_df$facebook), max(high_prob_df$facebook), length = 100) 
+yfit3 <- dnorm(xfit3, mean = mean(high_prob_df$facebook), sd = sd(high_prob_df$facebook))
+yfit3 <- yfit3 * diff(hist_fb3$mids[1:2]) * length(high_prob_df$facebook) 
+lines(xfit3, yfit3, lwd = 4)
+
+```
+
+```{r}
+# histogram for price
+hist_price1<- hist(low_prob_df$price, col = "lightgreen", main="Histogram For Price In Low Probability", xlab = "Price")
+xfit1 <- seq(min(low_prob_df$price), max(low_prob_df$price), length = 100) 
+yfit1 <- dnorm(xfit1, mean = mean(low_prob_df$price), sd = sd(low_prob_df$price))
+yfit1 <- yfit1 * diff(hist_price1$mids[1:2]) * length(low_prob_df$price) 
+lines(xfit1, yfit1, lwd = 4)
+
+hist_price2<- hist(mid_prob_df$price, col = "red", main="Histogram For Price In Middle Probability", xlab = "Price")
+xfit2 <- seq(min(mid_prob_df$price), max(mid_prob_df$price), length = 100) 
+yfit2 <- dnorm(xfit2, mean = mean(mid_prob_df$price), sd = sd(mid_prob_df$price))
+yfit2 <- yfit2 * diff(hist_price2$mids[1:2]) * length(mid_prob_df$price) 
+lines(xfit2, yfit2, lwd = 4)
+
+hist_price3<-hist(high_prob_df$price, col = "lightblue", main="Histogram For Price In High Probability", xlab = "Price")
+xfit3 <- seq(min(high_prob_df$price), max(high_prob_df$price), length = 100) 
+yfit3 <- dnorm(xfit3, mean = mean(high_prob_df$price), sd = sd(high_prob_df$price))
+yfit3 <- yfit3 * diff(hist_price3$mids[1:2]) * length(high_prob_df$price) 
+lines(xfit3, yfit3, lwd = 4)
+
+```
+```{r}
+# histogram for social media
+hist_media1<- hist(low_prob_df$social_media, col = "lightgreen", main="Histogram For Social Media In Low Probability", xlab = "Social Media", breaks = 10)
+xfit1 <- seq(min(low_prob_df$social_media), max(low_prob_df$social_media)) 
+yfit1 <- dnorm(xfit1, mean = mean(low_prob_df$social_media), sd = sd(low_prob_df$social_media))
+yfit1 <- yfit1 * diff(hist_media1$mids[1:2]) * length(low_prob_df$social_media) 
+lines(xfit1, yfit1, lwd = 4)
+
+hist_media2<-hist(mid_prob_df$social_media, col = "red", main="Histogram For Social Media In Middle Probability", xlab = "Social Media", breaks = 10)
+xfit2 <- seq(min(mid_prob_df$social_media), max(mid_prob_df$social_media)) 
+yfit2 <- dnorm(xfit2, mean = mean(mid_prob_df$social_media), sd = sd(mid_prob_df$social_media))
+yfit2 <- yfit2 * diff(hist_media2$mids[1:2]) * length(mid_prob_df$social_media) 
+lines(xfit2, yfit2, lwd = 4)
+
+hist_media3<-hist(high_prob_df$social_media, col = "lightblue", main="Histogram For Social Media In High Probability", xlab = "Social Media", breaks = 10)
+xfit2 <- seq(min(mid_prob_df$social_media), max(mid_prob_df$social_media)) 
+yfit2 <- dnorm(xfit2, mean = mean(mid_prob_df$social_media), sd = sd(mid_prob_df$social_media))
+yfit2 <- yfit2 * diff(hist_media2$mids[1:2]) * length(mid_prob_df$social_media) 
+lines(xfit2, yfit2, lwd = 4)
+```
+
+
+```{r}
+# area chart for high_pro income
+tb_income <- table(high_prob_df$income)
+tb_income <-data.frame(tb_income)
+plot(tb_income$Var1,tb_income$Freq,type = "l",xaxt = 'n')
+axis(side=1, at = seq(0, 36, by= 5), col.axis="black") 
+# polygon(tb_income$Var1,tb_income$Freq, col = "red")
+
+
+
+```
+```{r}
+# combine all prob and make line charts for income
+tb_income_high <- table(high_prob_df$income)
+tb_income_high <-data.frame(tb_income_high)
+# plot(tb_income_high$Var1,tb_income_high$Freq,type = "l",xaxt = 'n')
+# lines(tb_income_high$Var1,tb_income_high$Freq)
+# 
+# par(new=TRUE)
+tb_income_mid <- table(mid_prob_df$income)
+tb_income_mid <-data.frame(tb_income_mid)
+# plot(tb_income_mid$Var1,tb_income_mid$Freq,type = "l",xaxt = 'n')
+# lines(tb_income_mid$Var1,tb_income_mid$Freq)
+# 
+# par(new=TRUE)
+tb_income_low <- table(low_prob_df$income)
+tb_income_low <-data.frame(tb_income_low)
+# plot(tb_income_low$Var1,tb_income_low$Freq,type = "l",xaxt = 'n')
+# lines(tb_income_low$Var1,tb_income_low$Freq)
+# 
+# axis(side=1, at = seq(0, 36, by= 5), col.axis="black") 
+# polygon(tb_income_high$Var1,tb_income_high$Freq, col = "red")
+
+
+# merge all level probability
+income_df <- merge(tb_income_high, tb_income_mid,all.x = TRUE, by="Var1")
+income_df <- merge(income_df, tb_income_low, all.x = TRUE,by="Var1")
+
+with(income_df, plot(income_df$Var1,income_df$Freq.x, type = "l",xaxt = 'n'))
+lines(income_df$Var1,income_df$Freq.x,col="lightblue")
+par(new=TRUE)
+with(income_df, plot(income_df$Var1,income_df$Freq.y, type = "l",xaxt = 'n'))
+lines(income_df$Var1,income_df$Freq.y,col="red")
+par(new=TRUE)
+with(income_df, plot(income_df$Var1,income_df$Freq, type = "l",xaxt = 'n'))
+lines(income_df$Var1,income_df$Freq,col="lightgreen")
+axis(side=1, at = seq(0, 36, by= 5), col.axis="black") 
+
+
+```
+
+```{r} 
+# line chart for social media
+tb_socialmedia_low <- table(low_prob_df$social_media)
+tb_socialmedia_low <-data.frame(tb_socialmedia_low)
+tb_socialmedia_mid <- table(mid_prob_df$social_media)
+tb_socialmedia_mid <-data.frame(tb_socialmedia_mid)
+tb_socialmedia_high <- table(high_prob_df$social_media)
+tb_socialmedia_high <-data.frame(tb_socialmedia_high)
+
+tb_socialmedia_low$Var1=as.numeric(tb_socialmedia_low$Var1)
+tb_socialmedia_mid$Var1=as.numeric(tb_socialmedia_mid$Var1)
+tb_socialmedia_high$Var1=as.numeric(tb_socialmedia_high$Var1)
+# breaks = seq(0, 100, by=10)
+# tb_socialmedia_low.cut <- sum(tb_socialmedia_low$Var1, breaks, right=FALSE)
+
+p1<-subset(tb_socialmedia_low, tb_socialmedia_low$Var1<10)
+s1<- sum(p1$Freq)
+p2<-subset(tb_socialmedia_low, tb_socialmedia_low$Var1>10 & tb_socialmedia_low$Var1<20)
+s2<- sum(p2$Freq)
+p3<-subset(tb_socialmedia_low, tb_socialmedia_low$Var1>20 & tb_socialmedia_low$Var1<30)
+s3<- sum(p3$Freq)
+p4<-subset(tb_socialmedia_low, tb_socialmedia_low$Var1>30 & tb_socialmedia_low$Var1<40)
+s4<- sum(p4$Freq)
+p5<-subset(tb_socialmedia_low, tb_socialmedia_low$Var1>40 & tb_socialmedia_low$Var1<50)
+s5<- sum(p5$Freq)
+p6<-subset(tb_socialmedia_low, tb_socialmedia_low$Var1>50 & tb_socialmedia_low$Var1<60)
+s6<- sum(p6$Freq)
+p7<-subset(tb_socialmedia_low, tb_socialmedia_low$Var1>60 & tb_socialmedia_low$Var1<70)
+s7<- sum(p7$Freq)
+p8<-subset(tb_socialmedia_low, tb_socialmedia_low$Var1>70 & tb_socialmedia_low$Var1<80)
+s8<- sum(p8$Freq)
+p9<-subset(tb_socialmedia_low, tb_socialmedia_low$Var1>90 & tb_socialmedia_low$Var1<100)
+s9<- sum(p9$Freq)
+p10<-subset(tb_socialmedia_low, tb_socialmedia_low$Var1>50 & tb_socialmedia_low$Var1<60)
+s10<- sum(p10$Freq)
+
+Freq <- rbind(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10)
+Var1 <- seq(10,100,10)
+new_tb_socialmedia_low <- data.frame(Var1, Freq) 
+
+p1<-subset(tb_socialmedia_mid, tb_socialmedia_mid$Var1<10)
+s1<- sum(p1$Freq)
+p2<-subset(tb_socialmedia_mid, tb_socialmedia_mid$Var1>10 & tb_socialmedia_mid$Var1<20)
+s2<- sum(p2$Freq)
+p3<-subset(tb_socialmedia_mid, tb_socialmedia_mid$Var1>20 & tb_socialmedia_mid$Var1<30)
+s3<- sum(p3$Freq)
+p4<-subset(tb_socialmedia_mid, tb_socialmedia_mid$Var1>30 & tb_socialmedia_mid$Var1<40)
+s4<- sum(p4$Freq)
+p5<-subset(tb_socialmedia_mid, tb_socialmedia_mid$Var1>40 & tb_socialmedia_mid$Var1<50)
+s5<- sum(p5$Freq)
+p6<-subset(tb_socialmedia_mid, tb_socialmedia_mid$Var1>50 & tb_socialmedia_mid$Var1<60)
+s6<- sum(p6$Freq)
+p7<-subset(tb_socialmedia_mid, tb_socialmedia_mid$Var1>60 & tb_socialmedia_mid$Var1<70)
+s7<- sum(p7$Freq)
+p8<-subset(tb_socialmedia_mid, tb_socialmedia_mid$Var1>70 & tb_socialmedia_mid$Var1<80)
+s8<- sum(p8$Freq)
+p9<-subset(tb_socialmedia_mid, tb_socialmedia_mid$Var1>90 & tb_socialmedia_mid$Var1<100)
+s9<- sum(p9$Freq)
+p10<-subset(tb_socialmedia_mid, tb_socialmedia_mid$Var1>50 & tb_socialmedia_mid$Var1<60)
+s10<- sum(p10$Freq)
+
+Freq <- rbind(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10)
+Var1 <- seq(10,100,10)
+new_tb_socialmedia_mid <- data.frame(Var1, Freq) 
+
+
+p1<-subset(tb_socialmedia_high, tb_socialmedia_high$Var1<10)
+s1<- sum(p1$Freq)
+p2<-subset(tb_socialmedia_high, tb_socialmedia_high$Var1>10 & tb_socialmedia_high$Var1<20)
+s2<- sum(p2$Freq)
+p3<-subset(tb_socialmedia_high, tb_socialmedia_high$Var1>20 & tb_socialmedia_high$Var1<30)
+s3<- sum(p3$Freq)
+p4<-subset(tb_socialmedia_high, tb_socialmedia_high$Var1>30 & tb_socialmedia_high$Var1<40)
+s4<- sum(p4$Freq)
+p5<-subset(tb_socialmedia_high, tb_socialmedia_high$Var1>40 & tb_socialmedia_high$Var1<50)
+s5<- sum(p5$Freq)
+p6<-subset(tb_socialmedia_high, tb_socialmedia_high$Var1>50 & tb_socialmedia_high$Var1<60)
+s6<- sum(p6$Freq)
+p7<-subset(tb_socialmedia_high, tb_socialmedia_high$Var1>60 & tb_socialmedia_high$Var1<70)
+s7<- sum(p7$Freq)
+p8<-subset(tb_socialmedia_high, tb_socialmedia_high$Var1>70 & tb_socialmedia_high$Var1<80)
+s8<- sum(p8$Freq)
+p9<-subset(tb_socialmedia_high, tb_socialmedia_high$Var1>90 & tb_socialmedia_high$Var1<100)
+s9<- sum(p9$Freq)
+p10<-subset(tb_socialmedia_high, tb_socialmedia_high$Var1>50 & tb_socialmedia_high$Var1<60)
+s10<- sum(p10$Freq)
+
+Freq <- rbind(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10)
+Var1 <- seq(10,100,10)
+new_tb_socialmedia_high <- data.frame(Var1, Freq) 
+
+
+# socialmedia_df <- merge(tb_socialmedia_high, tb_socialmedia_mid,all.x = TRUE, by="Var1")
+# socialmedia_df <- merge(socialmedia_df, tb_socialmedia_low, all.x = TRUE,by="Var1")
+# 
+# with(socialmedia_df, plot(socialmedia_df$Var1,socialmedia_df$Freq.x, type = "l",xaxt = 'n'))
+# lines(socialmedia_df$Var1,socialmedia_df$Freq.x,col="lightblue")
+# par(new=TRUE)
+# with(socialmedia_df, plot(socialmedia_df$Var1,socialmedia_df$Freq.y, type = "l",xaxt = 'n'))
+# lines(socialmedia_df$Var1,socialmedia_df$Freq.y,col="red")
+# par(new=TRUE)
+# with(socialmedia_df, plot(socialmedia_df$Var1,socialmedia_df$Freq, type = "l",xaxt = 'n'))
+# lines(socialmedia_df$Var1,socialmedia_df$Freq,col="lightgreen")
+# axis(side=1, at = seq(0, 100, by= 10), col.axis="black") 
+
+```
+
+```{r}
+# line chart for Facebook
+tb_fb_low <- table(low_prob_df$facebook)
+tb_fb_low <-data.frame(tb_fb_low)
+tb_fb_mid <- table(mid_prob_df$facebook)
+tb_fb_mid <-data.frame(tb_fb_mid)
+tb_fb_high <- table(high_prob_df$facebook)
+tb_fb_high <-data.frame(tb_fb_high)
+
+fb_df <- merge(tb_fb_high, tb_fb_mid,all.x = TRUE, by="Var1")
+fb_df <- merge(fb_df, tb_fb_low, all.x = TRUE,by="Var1")
+
+with(fb_df, plot(fb_df$Var1,fb_df$Freq.x, type = "l",xaxt = 'n'))
+lines(fb_df$Var1,fb_df$Freq.x,col="lightblue")
+par(new=TRUE)
+with(fb_df, plot(fb_df$Var1,fb_df$Freq.y, type = "l",xaxt = 'n'))
+lines(fb_df$Var1,fb_df$Freq.y,col="red")
+par(new=TRUE)
+with(fb_df, plot(fb_df$Var1,fb_df$Freq, type = "l",xaxt = 'n'))
+lines(fb_df$Var1,fb_df$Freq,col="lightgreen")
+axis(side=1, at = seq(0, 100, by= 10), col.axis="black") 
+
+```
+
+```{r}
+# line chart for price
+tb_price_low <- table(low_prob_df$price)
+tb_price_low <-data.frame(tb_price_low)
+tb_price_mid <- table(mid_prob_df$price)
+tb_price_mid <-data.frame(tb_price_mid)
+tb_price_high <- table(high_prob_df$price)
+tb_price_high <-data.frame(tb_price_high)
+
+# price_df <- merge(tb_price_high, tb_price_mid,all.x = TRUE, by="Var1")
+# price_df <- merge(price_df, tb_price_low, all.x = TRUE,by="Var1")
+# 
+# with(price_df, plot(price_df$Var1,price_df$Freq.x, type = "l",xaxt = 'n'))
+# lines(price_df$Var1,price_df$Freq.x,col="lightblue")
+# par(new=TRUE)
+# with(price_df, plot(price_df$Var1,price_df$Freq.y, type = "l",xaxt = 'n'))
+# lines(price_df$Var1,price_df$Freq.y,col="red")
+# par(new=TRUE)
+# with(price_df, plot(price_df$Var1,price_df$Freq, type = "l",xaxt = 'n'))
+# lines(price_df$Var1,price_df$Freq,col="lightgreen")
+# axis(side=1, at = seq(0, 100, by= 10), col.axis="black") 
+```
+
+```{r}
+# line chart for edu
+tb_edu_low <- table(low_prob_df$educ)
+tb_edu_low <-data.frame(tb_edu_low)
+tb_edu_mid <- table(mid_prob_df$educ)
+tb_edu_mid <-data.frame(tb_edu_mid)
+tb_edu_high <- table(high_prob_df$educ)
+tb_edu_high <-data.frame(tb_edu_high)
+
+edu_df <- merge(tb_edu_high, tb_edu_mid,all.x = TRUE, by="Var1")
+edu_df <- merge(edu_df, tb_edu_low, all.x = TRUE,by="Var1")
+
+with(edu_df, plot(edu_df$Var1,edu_df$Freq.x, type = "l",xaxt = 'n'))
+lines(edu_df$Var1,edu_df$Freq.x,col="lightblue")
+par(new=TRUE)
+with(edu_df, plot(edu_df$Var1,edu_df$Freq.y, type = "l",xaxt = 'n'))
+lines(edu_df$Var1,edu_df$Freq.y,col="red")
+par(new=TRUE)
+with(edu_df, plot(edu_df$Var1,edu_df$Freq, type = "l",xaxt = 'n'))
+lines(edu_df$Var1,edu_df$Freq,col="lightgreen")
+axis(side=1, at = seq(0, 100, by= 10), col.axis="black") 
+```
+
+```{r}
+# verify counts for top 5 highest income (quantile: 1-10) by selecting udc_id randomly from high_prob_df VS na_test
+
+top5_income_quantile1<- high_prob_df[high_prob_df$income<11,]
+tb_top5_income1 <- as.data.frame(table(top5_income_quantile1$income))
+# colnames()
+
+top5_income_quantile2<- na_test[na_test$income <11,]
+tb_top5_income2 <- as.data.frame(table(top5_income_quantile2$income))
+
+udcid_top5_edu_df <- top5_income_quantile[sample(nrow(top5_income_quantile),11),]
+
+```
+
+```{r}
+# export csv files for plotly web
+na_train_csv <- write.csv(na_train, '/Users/tracy/Desktop/practice/project1/na_train.csv')
+high_prob <- write.csv(high_prob_df, '/Users/tracy/Desktop/practice/project1/high_prob_df.csv')
+tb_income_csv <- write.csv(tb_income, '/Users/tracy/Desktop/practice/project1/tb_income.csv')
+income_df_csv <- write.csv(income_df, '/Users/tracy/Desktop/practice/project1/income_df2.csv')
+socialmedia_df_csv <- write.csv(socialmedia_df, '/Users/tracy/Desktop/practice/project1/socialmedia_df.csv')
+fb_df_csv <- write.csv(fb_df, '/Users/tracy/Desktop/practice/project1/fb_df.csv')
+price_df_csv <- write.csv(price_df, '/Users/tracy/Desktop/practice/project1/price_df.csv')
+edu_df_csv <- write.csv(edu_df, '/Users/tracy/Desktop/practice/project1/edu_df.csv')
+low_income.csv <- write.csv(tb_income_low, '/Users/tracy/Desktop/practice/project1/low_income.csv')
+mid_income.csv <- write.csv(tb_income_mid, '/Users/tracy/Desktop/practice/project1/mid_income.csv')
+high_income.csv <- write.csv(tb_income_high, '/Users/tracy/Desktop/practice/project1/high_income.csv')
+low_media.csv <- write.csv(new_tb_socialmedia_low, '/Users/tracy/Desktop/practice/project1/low_media.csv')
+mid_media.csv <- write.csv(new_tb_socialmedia_mid, '/Users/tracy/Desktop/practice/project1/mid_media.csv')
+high_media.csv <- write.csv(new_tb_socialmedia_high, '/Users/tracy/Desktop/practice/project1/high_media.csv')
+
+
+media_bind<-cbind(new_tb_socialmedia_low,new_tb_socialmedia_mid,new_tb_socialmedia_high)
+media_bind<- media_bind[,-c(3,5)]
+media_bind.csv <- write.csv(media_bind, '/Users/tracy/Desktop/practice/project1/media_bind.csv')
+newDF_income<- write.csv(newDF, '/Users/tracy/Desktop/practice/project1/newDF_income.csv')
+newDF_media<- write.csv(newDF2, '/Users/tracy/Desktop/practice/project1/newDF_media.csv')
+
+```
+
+```{r}
+# average probability for income
+d=0
+for (index in 1:36){    # range(na_test$income)
+  d[index] <- with(na_test, mean(na_test$Probability[na_test$income ==index]) )
+  newDF<- data.frame(d)
+}
+
+colnames(newDF) <- "income"
+
+# average probability for social media
+d2<-0
+for (index2 in 1:99){    #range(na_test$social_media)
+  d2[index2] <- with(na_test, mean(na_test$Probability[na_test$social_media ==index2]) )
+  newDF2<- data.frame(d2)
+}
+newDF2
+colnames(newDF2) <- "media"
+
+
+# average probability for edu
+v<-0
+for (index3 in 0:4){    #range(na_test$educ)
+  v[index3] <- with(na_test, mean(na_test$Probability[na_test$educ==index3]) )
+  newDF3<- data.frame(v)
+}
+newDF3
+
+# average probability for price
+v2<-0
+for (index4 in 1:200){    #range(na_test$price)
+  v2[index4] <- with(na_test, mean(na_test$Probability[na_test$price==index4]) )
+  newDF4<- data.frame(v2)
+}
+newDF4
+
+# average probability for facebook
+v3<-0
+for (index5 in 1:99){    #range(na_test$facebook)
+  v3[index5] <- with(na_test, mean(na_test$Probability[na_test$price==index5]) )
+  newDF5<- data.frame(v3)
+}
+newDF5
+
+```
+
+
+```{r}
+online_household<-ifelse(is.na(train_merge$online_household),ave(train_merge$online_household,FUN = function(x) mean(x, na.rm=TRUE)),train_merge$online_household)
+income<-ifelse(is.na(train_merge$income),ave(train_merge$income,FUN = function(x) mean(x, na.rm=TRUE)),train_merge$income)
+comp_owner<-ifelse(is.na(train_merge$comp_owner),ave(train_merge$comp_owner,FUN = function(x) mean(x, na.rm=TRUE)),train_merge$comp_owner)
+age<-ifelse(is.na(train_merge$age),ave(train_merge$age,FUN = function(x) mean(x, na.rm=TRUE)),train_merge$age)
+educ<-ifelse(is.na(train_merge$educ),ave(train_merge$educ,FUN = function(x) mean(x, na.rm=TRUE)),train_merge$educ)
+social_media<-ifelse(is.na(train_merge$social_media),ave(train_merge$social_media,FUN = function(x) mean(x, na.rm=TRUE)),train_merge$social_media)
+facebook<-ifelse(is.na(train_merge$facebook),ave(train_merge$facebook,FUN = function(x) mean(x, na.rm=TRUE)),train_merge$facebook)
+facebook_brand<-ifelse(is.na(train_merge$facebook_brand),ave(train_merge$facebook_brand,FUN = function(x) mean(x, na.rm=TRUE)),train_merge$facebook_brand)
+facebook_rec<-ifelse(is.na(train_merge$facebook_rec),ave(train_merge$facebook_rec,FUN = function(x) mean(x, na.rm=TRUE)),train_merge$facebook_rec)
+pintrest<-ifelse(is.na(train_merge$pintrest),ave(train_merge$pintrest,FUN = function(x) mean(x, na.rm=TRUE)),train_merge$pintrest)
+twitter<-ifelse(is.na(train_merge$twitter),ave(train_merge$twitter,FUN = function(x) mean(x, na.rm=TRUE)),train_merge$twitter)
+home_owner<-ifelse(is.na(train_merge$home_owner),ave(train_merge$home_owner,FUN = function(x) mean(x, na.rm=TRUE)),train_merge$home_owner)
+
+
+
+```
+
