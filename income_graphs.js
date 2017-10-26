@@ -302,6 +302,8 @@ var income = svg.selectAll(".income")
 });
 
 
+
+// probability line for income
 var margin0 = {top: 40, right: 34, bottom: 100, left: 70},
     width0 = 660 - margin0.left - margin0.right,
     height0 = 600 - margin0.top - margin0.bottom;
@@ -309,7 +311,7 @@ var margin0 = {top: 40, right: 34, bottom: 100, left: 70},
         // append the svg1 obgect to the body of the page
         // appends a 'group' element to 'svg1'
         // moves the 'group' element to the top left margin0
-var svg_l = d3.select("#incomeline_svg")
+var svg_l = d3.select("#price_svg")
              .attr("width", width0 + margin0.left + margin0.right)
              .attr("height", height0 + margin0.top + margin0.bottom)
              .append("g")
@@ -321,14 +323,14 @@ var x0_l = d3.scaleLinear().range([0, width0]);
 var y0_l = d3.scaleLinear().range([height0, 0]);
 var color = d3.scaleOrdinal(d3.schemeCategory10);
 
-    var income_line_l = d3.line()
+    var price_line_l = d3.line()
         //.curve(d3.curveBasis)
         .x(function(d) { return x0_l(d.Id); })
-        .y(function(d) { return y0_l(d.income); });
+        .y(function(d) { return y0_l(d.price); });
 
 
 // Get the data1
-d3.csv("newDF_income.csv", function(error, data1) {
+d3.csv("newDF_price.csv", function(error, data1) {
     // console.log(data1)
     // debugger;
 // console.log(data1);
@@ -336,25 +338,23 @@ d3.csv("newDF_income.csv", function(error, data1) {
     // format the data1
     data1.forEach(function(d1) {
       d1.Id = +d1.Id;
-      d1.income = +d1.income;
-      // console.log(data1)
+      d1.price = +d1.price;
     });
 
-  var incomes_l = data1.columns.slice(0).map(function(id) {
+  var price_l = data1.columns.slice(0).map(function(id) {
     return {
       id: id,
       values: data1.map(function(d) {
-        return {probability: d.income, Count: d[id]};
+        return {probability: d.price, Count: d[id]};
     })
     };
    });
 
 
-//console.log(data1)
     // Scale the range of the data1
     x0_l.domain(d3.extent(data1, function(d1) { return d1.Id; }));
 
-    y0_l.domain([0,1]);
+    y0_l.domain([0.6,1]);
 
 data1.sort(function(a, b){return a.Id-b.Id}); // sort data1 in ascending order
 
@@ -367,7 +367,7 @@ data1.sort(function(a, b){return a.Id-b.Id}); // sort data1 in ascending order
             svg_l.append("text")
               .attr("transform", "translate(" + 250+ " ," + (height0 + margin0.top ) + ")")
               //.style("text-anchor", "middle")
-              .text("Income Percentile");
+              .text("Price Percentile");
 
 
               // Add the Y Axis
@@ -383,7 +383,7 @@ data1.sort(function(a, b){return a.Id-b.Id}); // sort data1 in ascending order
               .data([data1])
               .attr("class", "line_l")
               .attr("id", "blueLine")
-              .attr("d", income_line_l)
+              .attr("d", price_line_l)
               .style("stroke", "lightblue");
 
 
@@ -402,14 +402,14 @@ data1.sort(function(a, b){return a.Id-b.Id}); // sort data1 in ascending order
               .attr('stroke', 'black')
               .style("font-size", "25px")
               .style("text-anchor", "middle")
-              .text("Impact of Income");
+              .text("Propensity To Buy Across Price");
 
 
 
-var income_l = svg_l.selectAll(".income")
+var price_l = svg_l.selectAll(".price")
     .data(data1)
     .enter().append("g")
-      .attr("class", "income");
+      .attr("class", "price");
       // console.log(income);
 
 
@@ -419,7 +419,7 @@ var income_l = svg_l.selectAll(".income")
    .enter().append("circle")
      .attr("r", 2)
      .attr("cx", function(d) { return x0_l(d.Id); })
-     .attr("cy", function(d) { return y0_l(d.income); })
+     .attr("cy", function(d) { return y0_l(d.price); })
      .attr("fill","blue")
 
 
@@ -435,9 +435,9 @@ var income_l = svg_l.selectAll(".income")
              ;
 
              var lines_l = document.getElementsByClassName('line_l');
-            console.log(lines_l);
+            // console.log(lines_l);
              var mousePerLine_l = mouseG_l.selectAll('.mouse-per-line_l')
-               .data(incomes_l)
+               .data(data1)
                .enter()
                .append("g")
                .attr("class", "mouse-per-line_l");
@@ -445,7 +445,7 @@ var income_l = svg_l.selectAll(".income")
 
             //  text color
            mousePerLine_l.raise().append("text")
-             .attr("transform", "translate(10,20)")
+             .attr("transform", "translate(10,40)")
              .attr("fill", function(d2) {return color(d2.Id);})
             //  console.log(mousePerLine);
 
@@ -567,7 +567,7 @@ d3.csv("newDF_income.csv", function(error, data1) {
     // Scale the range of the data1
     x0_n.domain(d3.extent(data1, function(d1) { return d1.Id; }));
 
-    y0_n.domain([0.7,0.9]);
+    y0_n.domain([0.7,1]);
 
 data1.sort(function(a, b){return a.Id-b.Id}); // sort data1 in ascending order
 
@@ -614,7 +614,7 @@ data1.sort(function(a, b){return a.Id-b.Id}); // sort data1 in ascending order
               .attr('stroke', 'black')
               .style("font-size", "25px")
               .style("text-anchor", "middle")
-              .text("Impact of Income");
+              .text("Propensity To Buy Across Income");
 
 
 
@@ -657,7 +657,7 @@ var income2 = svg_n.selectAll(".income")
 
             //  text color
            mousePerLine.raise().append("text")
-             .attr("transform", "translate(10,20)")
+             .attr("transform", "translate(10,70)")
              .attr("fill", function(d2) {return color(d2.Id);})
             //  console.log(mousePerLine);
 

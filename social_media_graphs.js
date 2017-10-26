@@ -301,7 +301,7 @@ var margin = {top: 40, right: 34, bottom: 100, left: 70},
         // append the svg1 obgect to the body of the page
         // appends a 'group' element to 'svg1'
         // moves the 'group' element to the top left margin1
-var svg4_l = d3.select("#medialine_svg")
+var svg4_l = d3.select("#fb_svg")
              .attr("width", width +margin.left + margin.right)
              .attr("height", height + margin.top + margin.bottom)
           .append("g")
@@ -312,20 +312,17 @@ var svg4_l = d3.select("#medialine_svg")
 var x_l = d3.scaleLinear().range([0, width]);
 var y_l = d3.scaleLinear().range([height, 0]);
 var color_l = d3.scaleOrdinal(d3.schemeCategory10);
-// var color_l = d3.scaleOrdinal()
-//      .domain(media_line)
-//      .range(["steelblue"]);
 
 
-    var media_line = d3.line()
+    var fb_line = d3.line()
         // .curve(d3.curveBasis)
         .x(function(d) { return x_l(d.Id); })
-        .y(function(d) { return y_l(d.media); })
+        .y(function(d) { return y_l(d.facebook); })
       ;
 
 
 // Get the data1
-d3.csv("newDF_media.csv", function(error, data2) {
+d3.csv("newDF_fb.csv", function(error, data2) {
     // console.log(data2)
 
     if (error) throw error;
@@ -333,15 +330,15 @@ d3.csv("newDF_media.csv", function(error, data2) {
     data2.forEach(function(d1) {
       // d1.Id = +d1.Id;
       d1.Id = +d1.Id;
-      d1.media = +d1.media;
+      d1.facebook = +d1.facebook;
 
     });
 
-  var medias2 = data2.columns.slice(0).map(function(id) {
+  var fb = data2.columns.slice(0).map(function(id) {
     return {
       id: id,
       values: data2.map(function(d) {
-        return {probability: d.media, Count: d[id]};
+        return {probability: d.facebook, Count: d[id]};
     })
     };
    });
@@ -364,7 +361,7 @@ data2.sort(function(a, b){return a.Id-b.Id}); // sort data2 in ascending order
             svg4_l.append("text")
               .attr("transform", "translate(" + 250+ " ," + (height + margin.top ) + ")")
               //.style("text-anchor", "middle")
-              .text("Media quantile");
+              .text("Facebook quantile");
 
               // Add the Y Axis
             svg4_l.append("g")
@@ -376,7 +373,7 @@ data2.sort(function(a, b){return a.Id-b.Id}); // sort data2 in ascending order
               .data([data2])
               .attr("class", "line2_l")
               .attr("id", "blueLine2")
-              .attr("d", media_line)
+              .attr("d",fb_line)
               .style("stroke", "lightblue");
 
 
@@ -395,13 +392,13 @@ data2.sort(function(a, b){return a.Id-b.Id}); // sort data2 in ascending order
               .attr('stroke', 'black')
               .style("font-size", "25px")
               .style("text-anchor", "middle")
-              .text("Impact of Media");
+              .text("Propensity To Buy Across Facebook");
 
-var media2 = svg4_l.selectAll(".media")
+var fb2 = svg4_l.selectAll(".fb")
     .data(data2)
     .enter().append("g")
-      .attr("class", "media");
-      // console.log(media);
+      .attr("class", "fb");
+
 
 
       // add the dots with tooltips
@@ -410,7 +407,7 @@ var media2 = svg4_l.selectAll(".media")
    .enter().append("circle")
      .attr("r", 2)
      .attr("cx", function(d) { return x_l(d.Id); })
-     .attr("cy", function(d) { return y_l(d.media); })
+     .attr("cy", function(d) { return y_l(d.facebook); })
      .attr("fill","blue")
 
 
@@ -426,7 +423,7 @@ var media2 = svg4_l.selectAll(".media")
              var lines2_l = document.getElementsByClassName("line2_l");
             // console.log(lines2);
              var mousePerLine2_l = mouseG2_l.selectAll('.mouse-per-line2_l')
-               .data(medias2)
+               .data(fb)
                .enter()
                .append("g")
                .attr("class", "mouse-per-line2_l");
@@ -556,7 +553,7 @@ d3.csv("newDF_media.csv", function(error, data2) {
     // Scale the range of the data2
     x_n.domain(d3.extent(data2, function(d1) { return d1.Id; }));
 
-y_n.domain([0.6,1]);
+y_n.domain([0.7,1]);
 
 data2.sort(function(a, b){return a.Id-b.Id}); // sort data2 in ascending order
 
@@ -600,7 +597,7 @@ data2.sort(function(a, b){return a.Id-b.Id}); // sort data2 in ascending order
               .attr('stroke', 'black')
               .style("font-size", "25px")
               .style("text-anchor", "middle")
-              .text("Impact of Media");
+              .text("Propensity To Buy Across Media");
 
 var media2 = svg4_n.selectAll(".media")
     .data(data2)
